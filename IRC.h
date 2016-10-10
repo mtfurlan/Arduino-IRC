@@ -24,21 +24,33 @@ typedef struct IRC_Config {
   char* chan;
 } ircConfig;
 
+typedef struct IRC_Message {
+  char to[200];
+  char from[32];
+  char type[32];
+  char msg[510];
+  bool pm;
+} ircMsg;
+
 class IRC{
   public:
-    IRC(ircConfig conf);
-    void onMsg(void* callback);
-    void sendMsg(char* msg, char* channel);
+    void init(ircConfig conf);
+    void begin();
+    //Returns a mallocd ircMsg, which is handled after the message is sent
+    void onMsg(ircMsg* (*callback)(ircMsg* msg));
+    //void loopHandler(ircMsg* (*callback)());
   private:
     WiFiClient _client;
     ircConfig _conf;
+    ircMsg* (*_msgHandler)(ircMsg* msg);
+    //ircMsg* (*_loopHandler)();
+
+
+    void _connectionRegistration();
 
     void handle_irc_connection();
-    void print_nick(char buffer[]);
     int read_until(char abort_c, char buffer[]);
     void ignore_until(char c);
-    void print_until(char c);
-    void print_until_endline();
 };
 
 #endif

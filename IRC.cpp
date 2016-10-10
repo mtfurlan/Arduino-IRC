@@ -1,78 +1,106 @@
 #include "Arduino.h"
 #include "IRC.h"
 
-IRC::IRC(ircConfig conf){
+void IRC::init(ircConfig conf){
   _client = conf.client;
   _conf = conf;
+}
+void IRC::onMsg(ircMsg* (*callback)(ircMsg* msg)){
+  _msgHandler = callback;
+}
+void sendMsg(ircMsg* msg){
+}
 
+void IRC::begin(){
+  while(true){
+    DEBUG_PRINTLN("IRC connecting ...");
+    if (_client.connect(_conf.host, _conf.port)) {
+      DEBUG_PRINTLN("connected");
+      _connectionRegistration();
+    }else{
+      // if you didn't get a connection to the server:
+      DEBUG_PRINTLN("IRC connection failed");
+      delay(2000);
+    }
+  }
+}
+
+
+
+void IRC::_connectionRegistration(){
   char buf[42];
-
-  DEBUG_PRINTLN("IRC connecting ...");
-  if (_client.connect(_conf.host, _conf.port)) {
-    DEBUG_PRINTLN("connected");
-    delay(1000);
-    sprintf(buf, "USER %s 0 * :%s\r\n", _conf.username, _conf.realname);
-    _client.print(buf);
-    delay(500);
-    sprintf(buf, "NICK %s\r\n", _conf.nick);
-    _client.print(buf);
-    delay(500);
-    sprintf(buf, "JOIN %s\r\n", _conf.chan);
-    _client.print(buf);
-    delay(500);
-    handle_irc_connection();
-  }
-  else {
-    // if you didn't get a connection to the server:
-    DEBUG_PRINTLN("IRC connection failed");
-    delay(2000);
-  }
-}
-void IRC::onMsg(void* callback){
-}
-void IRC::sendMsg(char* msg, char* channel){
+  delay(1000);
+  sprintf(buf, "USER %s 0 * :%s\r\n", _conf.username, _conf.realname);
+  _client.print(buf);
+  delay(500);
+  sprintf(buf, "NICK %s\r\n", _conf.nick);
+  _client.print(buf);
+  delay(500);
+  sprintf(buf, "JOIN %s\r\n", _conf.chan);
+  _client.print(buf);
+  delay(500);
+  handle_irc_connection();
 }
 
-#define IRC_BUFSIZE  32
-char from[IRC_BUFSIZE];
-char type[IRC_BUFSIZE];
-char to[IRC_BUFSIZE];
 
 void IRC::handle_irc_connection() {
+  char buf[900];//TODO: resize
+  ircMsg currMsg;//Never gets deallocated
   char c;
-  // if there are incoming bytes available
-  // from the server, read them and print them:
   while(true) {
     if (!_client.connected()) {
       return;
     }
     if(_client.available()) {
       c = _client.read();
-    }
-    else {
+    }else{
       continue;
     }
 
     if(c == ':') {
-      memset(from, 0, sizeof(from));
-      memset(type, 0, sizeof(type));
-      memset(to, 0, sizeof(to));
+      memset(&currMsg, 0, sizeof(currMsg));//Is this necessary?
 
-      read_until(' ', from);
-      read_until(' ', type);
-      read_until(' ', to);
+      read_until(' ', currMsg.from);
+      read_until(' ', currMsg.type);
+      read_until(' ', currMsg.to);
+      sprintf(buf, "%s %s %s\n", currMsg.type, currMsg.from, currMsg.to);
+      DEBUG_PRINT(buf);
 
-      if(strcmp(type, "PRIVMSG") == 0) {
-        print_nick(from);
+      /**
+       * Known Bug list
+       *
+       * Crashes on QUIT messages
+       * We use magic numbers for read_until
+       **/
+
+      if(strcmp(currMsg.type, "PRIVMSG") == 0) {
         ignore_until(':');
-        print_until('\r');
-      }else{
-
+        read_until('\r', currMsg.msg);
+        DEBUG_PRINTLN("Got message");
+        if(currMsg.to[0] == '#'){
+          currMsg.pm = false;
+        }else{
+          currMsg.pm = true;
+        }
+        ircMsg* newMsg = _msgHandler(&currMsg);
+        sprintf(buf, "PRIVMSG %s :%s\r\n", newMsg->to, newMsg->msg);
+        DEBUG_PRINT("Sending: ");
+        DEBUG_PRINT(buf);
+        _client.print(buf);
+        free(newMsg);
+      }else if(strcmp(currMsg.type, "433") == 0){
+        //nick in use, append _
+        char* temp = _conf.nick;
+        _conf.nick = (char*)malloc(strlen(_conf.nick)+1);
+        _conf.nick[0] = '\0';
+        strcat(_conf.nick,temp);
+        strcat(_conf.nick,"_");
+        return _connectionRegistration();
+      }else{//Some other error, probably
         ignore_until('\r');
       }
-    }
-    // could be a PING request by the server.
-    else if (c == 'P') {
+    }else if (c == 'P') {
+      // could be a PING request by the server.
       char buf[5];
       memset(buf, 0, sizeof(buf));
       buf[0] = c;
@@ -83,28 +111,17 @@ void IRC::handle_irc_connection() {
       ignore_until('\r');
       if(strcmp(buf, "PING") == 0) {
         _client.print("PONG\r\n");
-        DEBUG_PRINT("PING->PONG");
+        DEBUG_PRINTLN("PING->PONG");
       }
     }
+    //Not : or P, probably don't care.
   } // end while
-
 }
 
-void IRC::print_nick(char buffer[]) {
-  DEBUG_PRINT("<");
-  for(int i = 0; i < IRC_BUFSIZE - 1; i++) {
-    if(buffer[i] == '!') {
-      break;
-    }
-    DEBUG_PRINT(buffer[i]);
-  }
-  DEBUG_PRINT(">");
-}
-
-int IRC::read_until(char abort_c, char buffer[]) {
+int IRC::read_until(char abort_c, char* buffer) {
   int bytes_read = 0;
-  memset(buffer, 0, sizeof(buffer));
-  for(int i = 0; i < IRC_BUFSIZE - 1; i++) {
+  memset(buffer, 0, 32);//TODO: NOT HARDCODE SIZES
+  for(int i = 0; i < 31; i++) {
     if (_client.available()) {
       char c = _client.read();
       bytes_read++;
@@ -130,38 +147,6 @@ void IRC::ignore_until(char c) {
       if (curr_c == c) {
         return;
       }
-    }
-  }
-}
-
-// reads characters from the connection until
-// it hits the given character.
-void IRC::print_until(char c) {
-  while(true){
-    if (_client.available()) {
-      char curr_c = _client.read();
-      if (curr_c == c) {
-        DEBUG_PRINT("");
-        return;
-      }
-      DEBUG_PRINT(curr_c);
-    }
-  }
-}
-
-
-
-// reads characters from the connection until
-// it hits the given character.
-void IRC::print_until_endline() {
-  while(true){
-    if (_client.available()) {
-      char curr_c = _client.read();
-      if (curr_c == '\r') {
-        curr_c = _client.read();
-        if (curr_c == '\n') { return; }
-      }
-      DEBUG_PRINT(curr_c);
     }
   }
 }

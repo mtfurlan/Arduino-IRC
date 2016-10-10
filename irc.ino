@@ -10,6 +10,7 @@
 const char* host = "10.4.4.60";
 
 WiFiClient client;
+IRC ircClient;
 
 void setup() {
 
@@ -49,11 +50,36 @@ void setup() {
     "Bot",
     "#test"
   };
-  IRC ircClient(conf);
+  ircClient.init(conf);
+  ircClient.onMsg(msgHandler);
+  ircClient.begin();
+}
+
+char buf[901];
+
+//This mallocs a thing, will be freed when sent
+ircMsg* msgHandler(ircMsg* msg){
+  sprintf(buf, "%s: <%s> %s\n", msg->to, msg->from, msg->msg);
+  Serial.print(buf);
+  ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
+
+  Serial.println(strlen(msg->to));
+
+  if(msg->pm){
+    strcpy(newMsg->to, msg->from);
+  }else{
+    strcpy(newMsg->to, msg->to);
+  }
+  strcpy(newMsg->msg, "PONG");
+        sprintf(buf, "PRIVMSG %s :%s\r\n", newMsg->to, newMsg->msg);
+        DEBUG_PRINT("Sending: ");
+        DEBUG_PRINT(buf);
+
+  return newMsg;
 }
 
 
 
-void loop() {
-}
+//Not used
+void loop() {}
 
