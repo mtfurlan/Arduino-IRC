@@ -82,7 +82,6 @@ void IRC::handle_irc_connection() {
       /**
        * Known Bug list
        *
-       * Crashes on _client.connected() if we change nick?
        * We use magic numbers for read_until
        * Buf scattered about
        **/
@@ -117,7 +116,8 @@ void IRC::handle_irc_connection() {
         _conf.nick[0] = '\0';
         strcat(_conf.nick,temp);
         strcat(_conf.nick,"_");
-        return _connectionRegistration();
+        strcat(_conf.nick,"\0");
+        return;//Go back to connection loop
       }else{//Some other error, probably
         ignore_until('\r');
       }
