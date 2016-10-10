@@ -5,7 +5,10 @@
 #include "pass.h"
 
 
-// https://github.com/JhonControl/ESP8266_Client_IRC_terminal_Serial
+int val = 0;
+int oldVal = 0;
+int inPin = D0;
+int outPin = D1;
 
 const char* host = "10.4.4.60";
 
@@ -13,6 +16,9 @@ WiFiClient client;
 IRC ircClient;
 
 void setup() {
+  pinMode(inPin, INPUT_PULLUP);
+  pinMode(outPin, OUTPUT);
+  digitalWrite(outPin, digitalRead(inPin));
 
   Serial.begin(115200);
   delay(10);
@@ -78,9 +84,19 @@ void msgHandler(ircMsg* msg){
   ircClient.sendMsg(newMsg);
 }
 
-
 //Actual loop
 void loopHandler(){
+  val = digitalRead(inPin);
+  if(val != oldVal){
+    //Change
+    if(val){
+      ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
+      strcpy(newMsg->to, "#test");
+      strcpy(newMsg->msg, "Pin went low");
+      ircClient.sendMsg(newMsg);
+    }
+    oldVal = val;
+  }
 }
 
 //Not used
