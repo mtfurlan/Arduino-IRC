@@ -37,15 +37,14 @@ class IRC{
   public:
     void init(ircConfig conf);
     void begin();
-    //Returns a mallocd ircMsg, which is handled after the message is sent
-    void onMsg(void (*callback)(ircMsg* msg));
+    void msgHandler(void (*callback)(ircMsg* msg));
     void sendMsg(ircMsg* newMsg);
-    //void loopHandler(ircMsg* (*callback)());
+    void loopHandler(void (*callback)());
   private:
     WiFiClient _client;
     ircConfig _conf;
-    void (*_msgHandler)(ircMsg* msg);
-    //ircMsg* (*_loopHandler)();
+    void (*_msgHandler)(ircMsg* msg) = NULL;
+    void (*_loopHandler)() = NULL;
 
 
     void _connectionRegistration();

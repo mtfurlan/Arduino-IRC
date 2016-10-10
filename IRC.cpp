@@ -5,8 +5,11 @@ void IRC::init(ircConfig conf){
   _client = conf.client;
   _conf = conf;
 }
-void IRC::onMsg(void (*callback)(ircMsg* msg)){
+void IRC::msgHandler(void (*callback)(ircMsg* msg)){
   _msgHandler = callback;
+}
+void IRC::loopHandler(void (*callback)()){
+  _loopHandler = callback;
 }
 void IRC::sendMsg(ircMsg* newMsg){
   char buf[900];//TODO: resize
@@ -54,6 +57,9 @@ void IRC::handle_irc_connection() {
   ircMsg currMsg;//Never gets deallocated
   char c;
   while(true) {
+    if(_loopHandler != NULL){
+      _loopHandler();
+    }
     if (!_client.connected()) {
       return;
     }
@@ -91,7 +97,9 @@ void IRC::handle_irc_connection() {
         //Split from up
         strncpy(currMsg.nick,currMsg.from, strchr(currMsg.from,'!')-currMsg.from);
 
-        _msgHandler(&currMsg);
+        if(_msgHandler != NULL){
+          _msgHandler(&currMsg);
+        }
       }else if(strcmp(currMsg.type, "433") == 0){
         //nick in use, append _
         char* temp = _conf.nick;

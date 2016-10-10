@@ -51,7 +51,8 @@ void setup() {
     "#test"
   };
   ircClient.init(conf);
-  ircClient.onMsg(msgHandler);
+  ircClient.msgHandler(msgHandler);
+  ircClient.loopHandler(loopHandler);
   ircClient.begin();
 }
 
@@ -76,6 +77,9 @@ void msgHandler(ircMsg* msg){
 }
 
 
+//Actual loop
+void loopHandler(){
+}
 
 //Not used
 void loop() {}
