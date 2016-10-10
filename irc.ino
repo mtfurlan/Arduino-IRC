@@ -51,7 +51,7 @@ void setup() {
     "#test"
   };
   ircClient.init(conf);
-  ircClient.msgHandler(msgHandler);
+  ircClient.msgHandler(msgHandler, ALL);
   ircClient.loopHandler(loopHandler);
   ircClient.begin();
 }
@@ -62,6 +62,8 @@ char buf[901];
 void msgHandler(ircMsg* msg){
   sprintf(buf, "%s: <%s> %s\n", msg->to, msg->from, msg->msg);
   Serial.print(buf);
+
+
   ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
 
   Serial.println(strlen(msg->to));

@@ -5,8 +5,9 @@ void IRC::init(ircConfig conf){
   _client = conf.client;
   _conf = conf;
 }
-void IRC::msgHandler(void (*callback)(ircMsg* msg)){
+void IRC::msgHandler(void (*callback)(ircMsg* msg), addressMode msgsToHandle){
   _msgHandler = callback;
+  _msgsToHandle = msgsToHandle;
 }
 void IRC::loopHandler(void (*callback)()){
   _loopHandler = callback;
@@ -54,7 +55,7 @@ void IRC::_connectionRegistration(){
 
 void IRC::handle_irc_connection() {
   char buf[900];//TODO: resize
-  ircMsg currMsg;//Never gets deallocated
+  ircMsg curMsg;//Never gets deallocated
   char c;
   while(true) {
     if(_loopHandler != NULL){
@@ -70,37 +71,46 @@ void IRC::handle_irc_connection() {
     }
 
     if(c == ':') {
-      memset(&currMsg, 0, sizeof(currMsg));//Necessary
+      memset(&curMsg, 0, sizeof(curMsg));//Necessary
 
-      read_until(' ', currMsg.from);
-      read_until(' ', currMsg.type);
-      read_until(' ', currMsg.to);
-      sprintf(buf, "%s %s %s\n", currMsg.type, currMsg.from, currMsg.to);
+      read_until(' ', curMsg.from);
+      read_until(' ', curMsg.type);
+      read_until(' ', curMsg.to);
+      sprintf(buf, "%s %s %s\n", curMsg.type, curMsg.from, curMsg.to);
       DEBUG_PRINT(buf);
 
       /**
        * Known Bug list
        *
-       * Crashes on QUIT messages
+       * Crashes on _client.connected() if we change nick?
        * We use magic numbers for read_until
+       * Buf scattered about
        **/
 
-      if(strcmp(currMsg.type, "PRIVMSG") == 0) {
-        ignore_until(':');
-        read_until('\r', currMsg.msg);
-        DEBUG_PRINTLN("Got message");
-        if(currMsg.to[0] == '#'){
-          currMsg.pm = false;
-        }else{
-          currMsg.pm = true;
-        }
-        //Split from up
-        strncpy(currMsg.nick,currMsg.from, strchr(currMsg.from,'!')-currMsg.from);
-
+      if(strcmp(curMsg.type, "PRIVMSG") == 0) {
         if(_msgHandler != NULL){
-          _msgHandler(&currMsg);
+          ignore_until(':');
+          read_until('\r', curMsg.msg);
+          DEBUG_PRINTLN("Got message");
+          if(_msgsToHandle == ADDRESSED){
+            //continue if not addressed
+            if(strncmp(curMsg.msg, _conf.nick, strlen(_conf.nick)) != 0 || curMsg.msg[strlen(_conf.nick)] != ':'){
+              DEBUG_PRINT("comp ");
+              DEBUG_PRINTLN(strcmp(curMsg.msg,_conf.nick));
+              continue;
+            }
+          }
+          if(curMsg.to[0] == '#'){
+            curMsg.pm = false;
+          }else{
+            curMsg.pm = true;
+          }
+          //Split from up
+          strncpy(curMsg.nick,curMsg.from, strchr(curMsg.from,'!')-curMsg.from);
+
+          _msgHandler(&curMsg);
         }
-      }else if(strcmp(currMsg.type, "433") == 0){
+      }else if(strcmp(curMsg.type, "433") == 0){
         //nick in use, append _
         char* temp = _conf.nick;
         _conf.nick = (char*)malloc(strlen(_conf.nick)+1);

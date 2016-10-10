@@ -33,16 +33,19 @@ typedef struct IRC_Message {
   bool pm;
 } ircMsg;
 
+typedef enum {ALL, ADDRESSED} addressMode;
+
 class IRC{
   public:
     void init(ircConfig conf);
     void begin();
-    void msgHandler(void (*callback)(ircMsg* msg));
+    void msgHandler(void (*callback)(ircMsg* msg), addressMode msgsToHandle);
     void sendMsg(ircMsg* newMsg);
     void loopHandler(void (*callback)());
   private:
     WiFiClient _client;
     ircConfig _conf;
+    addressMode _msgsToHandle;
     void (*_msgHandler)(ircMsg* msg) = NULL;
     void (*_loopHandler)() = NULL;
 
