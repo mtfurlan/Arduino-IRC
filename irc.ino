@@ -7,18 +7,19 @@
 
 int val = 0;
 int oldVal = 0;
-int inPin = D0;
-int outPin = D1;
-
-const char* host = "10.4.4.60";
+volatile int inPin = D1;
+int outPin = D0;
 
 WiFiClient client;
 IRC ircClient;
 
 void setup() {
+
   pinMode(inPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(inPin), pinInterrupt, CHANGE);
+
   pinMode(outPin, OUTPUT);
-  digitalWrite(outPin, digitalRead(inPin));
+  digitalWrite(outPin, LOW);
 
   Serial.begin(115200);
   delay(10);
@@ -49,12 +50,12 @@ void setup() {
   //char* nick;
   ircConfig conf = {
     client,
-    "10.4.4.60",
+    "irc.sorcery.net",
     6667,
     "esp8266NodeMCU1",
     "Mark Furland",
-    "Bot",
-    "#test"
+    "ScuzzTestBot",
+    "#scuzzBotTest"
   };
   ircClient.init(conf);
   ircClient.msgHandler(msgHandler, ALL);
@@ -69,30 +70,53 @@ void msgHandler(ircMsg* msg){
   sprintf(buf, "%s: <%s> %s\n", msg->to, msg->from, msg->msg);
   Serial.print(buf);
 
+  if(strcmp(msg->msg, "toggle") == 0){
+    digitalWrite(outPin, !digitalRead(outPin));
 
-  ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
+    ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
 
-  Serial.println(strlen(msg->to));
+    Serial.println(strlen(msg->to));
 
-  if(msg->pm){
-    strcpy(newMsg->to, msg->nick);
-  }else{
-    strcpy(newMsg->to, msg->to);
+    if(msg->pm){
+      strcpy(newMsg->to, msg->nick);
+    }else{
+      strcpy(newMsg->to, msg->to);
+    }
+    strcpy(newMsg->msg, "Toggle");
+
+    ircClient.sendMsg(newMsg);
+    return;
   }
-  strcpy(newMsg->msg, "PONG");
+  if(strcmp(msg->msg, "ping") == 0){
+    ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
 
-  ircClient.sendMsg(newMsg);
+    Serial.println(strlen(msg->to));
+
+    if(msg->pm){
+      strcpy(newMsg->to, msg->nick);
+    }else{
+      strcpy(newMsg->to, msg->to);
+    }
+    strcpy(newMsg->msg, "PONG");
+
+    ircClient.sendMsg(newMsg);
+    return;
+  }
+}
+
+void pinInterrupt(){
+  val = digitalRead(inPin);
 }
 
 //Actual loop
 void loopHandler(){
-  val = digitalRead(inPin);
   if(val != oldVal){
+      Serial.println("valChange");
     //Change
-    if(val){
+    if(!val){
       ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
-      strcpy(newMsg->to, "#test");
-      strcpy(newMsg->msg, "Pin went low");
+      strcpy(newMsg->to, "#scuzzBotTest");
+      sprintf(newMsg->msg, "Pin went %d", val);
       ircClient.sendMsg(newMsg);
     }
     oldVal = val;

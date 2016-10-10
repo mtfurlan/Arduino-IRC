@@ -45,10 +45,9 @@ void IRC::_connectionRegistration(){
   delay(500);
   sprintf(buf, "NICK %s\r\n", _conf.nick);
   _client.print(buf);
-  delay(500);
+  delay(800);
   sprintf(buf, "JOIN %s\r\n", _conf.chan);
   _client.print(buf);
-  delay(500);
   handle_irc_connection();
 }
 
@@ -117,6 +116,7 @@ void IRC::handle_irc_connection() {
         strcat(_conf.nick,temp);
         strcat(_conf.nick,"_");
         strcat(_conf.nick,"\0");
+        //TODO: sent "QUIT"
         return;//Go back to connection loop
       }else{//Some other error, probably
         ignore_until('\r');
