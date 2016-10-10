@@ -25,10 +25,11 @@ typedef struct IRC_Config {
 } ircConfig;
 
 typedef struct IRC_Message {
-  char to[200];
+  char to[32];
   char from[32];
   char type[32];
   char msg[510];
+  char nick[32];
   bool pm;
 } ircMsg;
 
@@ -37,12 +38,13 @@ class IRC{
     void init(ircConfig conf);
     void begin();
     //Returns a mallocd ircMsg, which is handled after the message is sent
-    void onMsg(ircMsg* (*callback)(ircMsg* msg));
+    void onMsg(void (*callback)(ircMsg* msg));
+    void sendMsg(ircMsg* newMsg);
     //void loopHandler(ircMsg* (*callback)());
   private:
     WiFiClient _client;
     ircConfig _conf;
-    ircMsg* (*_msgHandler)(ircMsg* msg);
+    void (*_msgHandler)(ircMsg* msg);
     //ircMsg* (*_loopHandler)();
 
 

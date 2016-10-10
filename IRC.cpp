@@ -5,10 +5,16 @@ void IRC::init(ircConfig conf){
   _client = conf.client;
   _conf = conf;
 }
-void IRC::onMsg(ircMsg* (*callback)(ircMsg* msg)){
+void IRC::onMsg(void (*callback)(ircMsg* msg)){
   _msgHandler = callback;
 }
-void sendMsg(ircMsg* msg){
+void IRC::sendMsg(ircMsg* newMsg){
+  char buf[900];//TODO: resize
+  sprintf(buf, "PRIVMSG %s :%s\r\n", newMsg->to, newMsg->msg);
+  DEBUG_PRINT("Sending: ");
+  DEBUG_PRINT(buf);
+  _client.print(buf);
+  free(newMsg);
 }
 
 void IRC::begin(){
@@ -58,7 +64,7 @@ void IRC::handle_irc_connection() {
     }
 
     if(c == ':') {
-      memset(&currMsg, 0, sizeof(currMsg));//Is this necessary?
+      memset(&currMsg, 0, sizeof(currMsg));//Necessary
 
       read_until(' ', currMsg.from);
       read_until(' ', currMsg.type);
@@ -82,12 +88,10 @@ void IRC::handle_irc_connection() {
         }else{
           currMsg.pm = true;
         }
-        ircMsg* newMsg = _msgHandler(&currMsg);
-        sprintf(buf, "PRIVMSG %s :%s\r\n", newMsg->to, newMsg->msg);
-        DEBUG_PRINT("Sending: ");
-        DEBUG_PRINT(buf);
-        _client.print(buf);
-        free(newMsg);
+        //Split from up
+        strncpy(currMsg.nick,currMsg.from, strchr(currMsg.from,'!')-currMsg.from);
+
+        _msgHandler(&currMsg);
       }else if(strcmp(currMsg.type, "433") == 0){
         //nick in use, append _
         char* temp = _conf.nick;

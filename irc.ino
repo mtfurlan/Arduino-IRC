@@ -58,7 +58,7 @@ void setup() {
 char buf[901];
 
 //This mallocs a thing, will be freed when sent
-ircMsg* msgHandler(ircMsg* msg){
+void msgHandler(ircMsg* msg){
   sprintf(buf, "%s: <%s> %s\n", msg->to, msg->from, msg->msg);
   Serial.print(buf);
   ircMsg* newMsg = (ircMsg*)malloc(sizeof(ircMsg));
@@ -66,16 +66,13 @@ ircMsg* msgHandler(ircMsg* msg){
   Serial.println(strlen(msg->to));
 
   if(msg->pm){
-    strcpy(newMsg->to, msg->from);
+    strcpy(newMsg->to, msg->nick);
   }else{
     strcpy(newMsg->to, msg->to);
   }
   strcpy(newMsg->msg, "PONG");
-        sprintf(buf, "PRIVMSG %s :%s\r\n", newMsg->to, newMsg->msg);
-        DEBUG_PRINT("Sending: ");
-        DEBUG_PRINT(buf);
 
-  return newMsg;
+  ircClient.sendMsg(newMsg);
 }
 
 
