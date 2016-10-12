@@ -58,7 +58,7 @@ void setup() {
     "#scuzzBotTest"
   };
   ircClient.init(conf);
-  ircClient.msgHandler(msgHandler, ALL);
+  ircClient.msgHandler(msgHandler, ADDRESSED);
   ircClient.loopHandler(loopHandler);
   ircClient.begin();
 }

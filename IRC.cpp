@@ -92,10 +92,16 @@ void IRC::handle_irc_connection() {
           DEBUG_PRINTLN("Got message");
           if(_msgsToHandle == ADDRESSED){
             //continue if not addressed
+            //if the first strlen(nick) chars are the same, and the character after that is :
             if(strncmp(curMsg.msg, _conf.nick, strlen(_conf.nick)) != 0 || curMsg.msg[strlen(_conf.nick)] != ':'){
-              DEBUG_PRINT("comp ");
-              DEBUG_PRINTLN(strcmp(curMsg.msg,_conf.nick));
+              DEBUG_PRINTLN("address mode failure");
               continue;
+            }else{
+              DEBUG_PRINTLN("address mode success");
+              //Strip addressing from msg
+              //Copy curMsg.msg + nick length + 2 to the start, and then set curMsg.msg length- (nick length + 2) to null.
+              memmove(curMsg.msg, curMsg.msg + strlen(_conf.nick)+2, strlen(curMsg.msg)-(strlen(_conf.nick)+2));
+              curMsg.msg[strlen(curMsg.msg)-(strlen(_conf.nick)+2)] = '\0';
             }
           }
           if(curMsg.to[0] == '#'){
@@ -103,7 +109,7 @@ void IRC::handle_irc_connection() {
           }else{
             curMsg.pm = true;
           }
-          //Split from up
+          //Split nick from from
           strncpy(curMsg.nick,curMsg.from, strchr(curMsg.from,'!')-curMsg.from);
 
           _msgHandler(&curMsg);
