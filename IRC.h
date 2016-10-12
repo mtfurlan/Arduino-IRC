@@ -25,11 +25,11 @@ typedef struct IRC_Config {
 } ircConfig;
 
 typedef struct IRC_Message {
-  char to[32];
-  char from[32];
-  char type[32];
+  char to[128];
+  char from[128];
+  char type[128];
   char msg[510];
-  char nick[32];
+  char nick[128];
   bool pm;
 } ircMsg;
 
